@@ -55,6 +55,8 @@ class MainActivity : ComponentActivity() {
     private var hasHandledAutoStart = false
     private var pendingAutoStartPermission = false
     private var currentStartWasAuto = false
+    private var autoStopAfterMb = 0
+    private var autoStopAfterMinutes = 0
 
     // SAF file picker to export the current pcap
     private val saveLauncher = registerForActivityResult(
@@ -118,6 +120,8 @@ class MainActivity : ComponentActivity() {
                 val settingsLoaded by settingsState.isLoaded
                 val captureOnStart by settingsState.captureOnStart
                 val maxPacketLogLines by settingsState.maxPacketLogLines
+                val autoStopAfterMb by settingsState.autoStopAfterMb
+                val autoStopAfterMinutes by settingsState.autoStopAfterMinutes
                 val packetLog by _packetLog
                 val isCapturing by _isCapturing
                 val filterText by _filterText
@@ -149,6 +153,26 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 } else {
+                    // Auto-stop based on captured log size.
+                    LaunchedEffect(packetLog, isCapturing, autoStopAfterMb) {
+                        val maxBytes = autoStopAfterMb * 1024 * 1024
+                        if (isCapturing && autoStopAfterMb > 0 && packetLog.toByteArray().size >= maxBytes) {
+                            _captureStatus.value = "Auto-stopped after reaching ${autoStopAfterMb}MB"
+                            stopCapture()
+                        }
+                    }
+
+                    // Auto-stop based on elapsed capture time.
+                    LaunchedEffect(isCapturing, autoStopAfterMinutes) {
+                        if (isCapturing && autoStopAfterMinutes > 0) {
+                            kotlinx.coroutines.delay(autoStopAfterMinutes.toLong() * 60_000L)
+                            if (_isCapturing.value) {
+                                _captureStatus.value = "Auto-stopped after ${autoStopAfterMinutes} minutes"
+                                stopCapture()
+                            }
+                        }
+                    }
+
                     val navController = rememberNavController()
                     NavHost(navController = navController, startDestination = "home") {
                         composable("home") {
