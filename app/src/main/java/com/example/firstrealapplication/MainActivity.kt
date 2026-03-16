@@ -49,7 +49,11 @@ class MainActivity : ComponentActivity() {
     private val _isCapturing = mutableStateOf(false)
     private val _filterText = mutableStateOf("")
     private val _saveMessage = mutableStateOf<String?>(null)
+    private val _captureStatus = mutableStateOf<String?>(null)
     private lateinit var settingsState: SettingsState
+    private var hasHandledAutoStart = false
+    private var pendingAutoStartPermission = false
+    private var currentStartWasAuto = false
 
     // SAF file picker to export the current pcap
     private val saveLauncher = registerForActivityResult(
@@ -94,7 +98,14 @@ class MainActivity : ComponentActivity() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             startCaptureService()
+        } else {
+            _captureStatus.value = if (pendingAutoStartPermission) {
+                "Auto-Start is waiting for VPN permission"
+            } else {
+                "VPN access has not been granted"
+            }
         }
+        pendingAutoStartPermission = false
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,10 +115,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             FirstRealApplicationTheme {
                 val settingsLoaded by settingsState.isLoaded
+                val captureOnStart by settingsState.captureOnStart
                 val packetLog by _packetLog
                 val isCapturing by _isCapturing
                 val filterText by _filterText
                 val saveMessage by _saveMessage
+                val captureStatus by _captureStatus
+
+                LaunchedEffect(settingsLoaded, captureOnStart) {
+                    if (settingsLoaded && captureOnStart && !hasHandledAutoStart && !_isCapturing.value) {
+                        hasHandledAutoStart = true
+                        requestVpnAndStart(autoStart = true)
+                    }
+                }
 
                 if (!settingsLoaded) {
                     Box(
@@ -134,6 +154,7 @@ class MainActivity : ComponentActivity() {
                                 packetLog = packetLog,
                                 isCapturing = isCapturing,
                                 filterText = filterText,
+                                captureStatus = captureStatus,
                                 onPlay = { requestVpnAndStart() },
                                 onStop = { stopCapture() },
                                 onFilterChanged = { _filterText.value = it },
@@ -178,11 +199,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun requestVpnAndStart() {
+    private fun requestVpnAndStart(autoStart: Boolean = false) {
+        currentStartWasAuto = autoStart
         val intent = VpnService.prepare(this)
         if (intent != null) {
+            pendingAutoStartPermission = autoStart
+            _captureStatus.value = if (autoStart) {
+                "Auto-Start is waiting for VPN permission"
+            } else {
+                "Waiting for VPN permission"
+            }
             vpnPermissionLauncher.launch(intent)
         } else {
+            _captureStatus.value = if (autoStart) {
+                "Auto-Start is initializing capture"
+            } else {
+                "Capture is starting"
+            }
             startCaptureService()
         }
     }
@@ -190,6 +223,11 @@ class MainActivity : ComponentActivity() {
     private fun startCaptureService() {
         _packetLog.value = ""
         _isCapturing.value = true
+        _captureStatus.value = if (currentStartWasAuto) {
+            "Capture active (Auto-Start)"
+        } else {
+            "Capture active"
+        }
 
         // Register callback for incoming packets
         LocalVpnService.onPacketCaptured = { summary ->
@@ -207,6 +245,9 @@ class MainActivity : ComponentActivity() {
 
     private fun stopCapture() {
         _isCapturing.value = false
+        pendingAutoStartPermission = false
+        currentStartWasAuto = false
+        _captureStatus.value = "Capture stopped"
         LocalVpnService.onPacketCaptured = null
 
         val serviceIntent = Intent(this, LocalVpnService::class.java).apply {
@@ -242,6 +283,7 @@ fun HomeScreen(
     packetLog: String,
     isCapturing: Boolean,
     filterText: String,
+    captureStatus: String?,
     onPlay: () -> Unit,
     onStop: () -> Unit,
     onFilterChanged: (String) -> Unit,
@@ -269,7 +311,7 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             AppHeader(
-                title = "Traffic Sniffer",
+                title = "TrafficMobile",
                 onSettingsClick = onNavigateToSettings,
                 onNewClick = onNew,
                 onOpenClick = onOpen
@@ -311,6 +353,25 @@ fun HomeScreen(
                     label = "Save",
                     onClick = onSave
                 )
+            }
+
+            if (!captureStatus.isNullOrBlank()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    color = Color(0xFFF5F7FA),
+                    shape = RoundedCornerShape(8.dp),
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp
+                ) {
+                    Text(
+                        text = captureStatus,
+                        color = Color(0xFF455A64),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                    )
+                }
             }
 
             // Filter indicator
