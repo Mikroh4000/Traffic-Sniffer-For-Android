@@ -116,6 +116,7 @@ class MainActivity : ComponentActivity() {
             FirstRealApplicationTheme {
                 val settingsLoaded by settingsState.isLoaded
                 val captureOnStart by settingsState.captureOnStart
+                val maxPacketLogLines by settingsState.maxPacketLogLines
                 val packetLog by _packetLog
                 val isCapturing by _isCapturing
                 val filterText by _filterText
@@ -231,9 +232,9 @@ class MainActivity : ComponentActivity() {
 
         // Register callback for incoming packets
         LocalVpnService.onPacketCaptured = { summary ->
-            // Append to the log (only latest 500 lines to avoid OOM)
+            // Append to the log (only latest maxPacketLogLines lines to avoid OOM)
             val current = _packetLog.value
-            val lines = current.lines().takeLast(499)
+            val lines = current.lines().takeLast(maxPacketLogLines - 1)
             _packetLog.value = (lines + summary).joinToString("\n")
         }
 
