@@ -234,6 +234,7 @@ class MainActivity : ComponentActivity() {
         LocalVpnService.onPacketCaptured = { summary ->
             // Append to the log (only latest maxPacketLogLines lines to avoid OOM)
             val current = _packetLog.value
+            val maxPacketLogLines = settingsState.maxPacketLogLines.value.coerceAtLeast(1)
             val lines = current.lines().takeLast(maxPacketLogLines - 1)
             _packetLog.value = (lines + summary).joinToString("\n")
         }
