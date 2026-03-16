@@ -33,8 +33,8 @@ class LocalVpnService : VpnService() {
         var instance: LocalVpnService? = null
             private set
 
-        // Callback to push parsed packet summaries to the UI
-        var onPacketCaptured: ((String) -> Unit)? = null
+        // Callback to push parsed packet summaries + payload to the UI
+        var onPacketCaptured: ((String, ByteArray) -> Unit)? = null
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
@@ -127,7 +127,7 @@ class LocalVpnService : VpnService() {
 
         // Build a summary string and deliver to UI
         val summary = PacketParser.summarize(parsed)
-        onPacketCaptured?.invoke(summary)
+        onPacketCaptured?.invoke(summary, parsed.payload)
     }
 
     private fun stopVpn() {

@@ -23,7 +23,8 @@ object PacketParser {
         val sourcePort: Int?,
         val destinationPort: Int?,
         val tcpFlags: TcpFlags?,
-        val payloadSize: Int
+        val payloadSize: Int,
+        val payload: ByteArray
     )
 
     data class TcpFlags(
@@ -67,6 +68,7 @@ object PacketParser {
         var dstPort: Int? = null
         var tcpFlags: TcpFlags? = null
         var payloadSize = totalLength - ihl
+        var payloadOffset = ihl
 
         when (protocol) {
             PROTO_TCP -> {
@@ -89,6 +91,7 @@ object PacketParser {
                     if (raw.size >= ihl + 13) {
                         val dataOffset = ((buffer.get(ihl + 12).toInt() and 0xFF) shr 4) * 4
                         payloadSize = totalLength - ihl - dataOffset
+                        payloadOffset = ihl + dataOffset
                     }
                 }
             }
@@ -97,11 +100,21 @@ object PacketParser {
                     srcPort = buffer.getShort(ihl).toInt() and 0xFFFF
                     dstPort = buffer.getShort(ihl + 2).toInt() and 0xFFFF
                     payloadSize = totalLength - ihl - 8
+                    payloadOffset = ihl + 8
                 }
             }
             PROTO_ICMP -> {
                 payloadSize = totalLength - ihl
+                payloadOffset = ihl
             }
+        }
+
+        val safeTotalLength = minOf(totalLength, raw.size)
+        val safePayloadStart = payloadOffset.coerceIn(0, safeTotalLength)
+        val payloadBytes = if (safePayloadStart < safeTotalLength) {
+            raw.copyOfRange(safePayloadStart, safeTotalLength)
+        } else {
+            ByteArray(0)
         }
 
         return ParsedPacket(
@@ -114,7 +127,8 @@ object PacketParser {
             sourcePort = srcPort,
             destinationPort = dstPort,
             tcpFlags = tcpFlags,
-            payloadSize = maxOf(payloadSize, 0)
+            payloadSize = maxOf(payloadSize, 0),
+            payload = payloadBytes
         )
     }
 

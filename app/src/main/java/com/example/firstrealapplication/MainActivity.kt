@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
     private val _filterText = mutableStateOf("")
     private val _saveMessage = mutableStateOf<String?>(null)
     private val _captureStatus = mutableStateOf<String?>(null)
+    private val _payloadBySummary = mutableStateMapOf<String, ByteArray>()
     private lateinit var settingsState: SettingsState
     private var hasHandledAutoStart = false
     private var pendingAutoStartPermission = false
@@ -168,6 +169,9 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("settings")
                                 },
                                 onPacketClick = { line ->
+                                    navController.currentBackStackEntry
+                                        ?.savedStateHandle
+                                        ?.set("packetPayload", _payloadBySummary[line])
                                     val encoded = URLEncoder.encode(line, "UTF-8")
                                     navController.navigate("packetDetail/$encoded")
                                 }
@@ -176,8 +180,13 @@ class MainActivity : ComponentActivity() {
                         composable("packetDetail/{packetLine}") { backStackEntry ->
                             val encoded = backStackEntry.arguments?.getString("packetLine") ?: ""
                             val line = URLDecoder.decode(encoded, "UTF-8")
+                            val payload = navController
+                                .previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.get<ByteArray?>("packetPayload")
                             PacketDetailScreen(
                                 packetLine = line,
+                                payloadBytes = payload,
                                 onBack = { navController.popBackStack() }
                             )
                         }
@@ -223,6 +232,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startCaptureService() {
         _packetLog.value = ""
+        _payloadBySummary.clear()
         _isCapturing.value = true
         _captureStatus.value = if (currentStartWasAuto) {
             "Capture active (Auto-Start)"
@@ -231,12 +241,13 @@ class MainActivity : ComponentActivity() {
         }
 
         // Register callback for incoming packets
-        LocalVpnService.onPacketCaptured = { summary ->
+        LocalVpnService.onPacketCaptured = { summary, payload ->
             // Append to the log (only latest maxPacketLogLines lines to avoid OOM)
             val current = _packetLog.value
             val maxPacketLogLines = settingsState.maxPacketLogLines.value.coerceAtLeast(1)
             val lines = current.lines().takeLast(maxPacketLogLines - 1)
             _packetLog.value = (lines + summary).joinToString("\n")
+            _payloadBySummary[summary] = payload
         }
 
         val serviceIntent = Intent(this, LocalVpnService::class.java).apply {
@@ -267,6 +278,7 @@ class MainActivity : ComponentActivity() {
 
     private fun clearCapture() {
         _packetLog.value = ""
+        _payloadBySummary.clear()
         _filterText.value = ""
         _saveMessage.value = "Capture cleared"
     }
@@ -532,7 +544,7 @@ fun ActionButton(
 }
 
 @Composable
-fun PacketDetailScreen(packetLine: String, onBack: () -> Unit) {
+fun PacketDetailScreen(packetLine: String, payloadBytes: ByteArray?, onBack: () -> Unit) {
     // Parse the summary line back into structured fields
     // Format: "PROTO  src:port → :dstport [FLAGS]  len=N"
     val protocol = packetLine.substringBefore(" ").trim()
@@ -640,6 +652,16 @@ fun PacketDetailScreen(packetLine: String, onBack: () -> Unit) {
             // ── Payload Section ──
             DetailSection(title = "Payload") {
                 DetailRow("Length", "$length bytes")
+                val binaryDump = payloadBytes?.let { toBinaryDump(it) }
+                if (!binaryDump.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = binaryDump,
+                        color = Color.DarkGray,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
 
             // ── TCP Flags breakdown ──
@@ -656,6 +678,23 @@ fun PacketDetailScreen(packetLine: String, onBack: () -> Unit) {
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+}
+
+private fun toBinaryDump(payload: ByteArray, maxBytes: Int = 64): String {
+    if (payload.isEmpty()) return "No payload bytes captured"
+
+    val shown = payload.take(maxBytes)
+    val body = shown.chunked(4).joinToString("\n") { block ->
+        block.joinToString(" ") { byte ->
+            Integer.toBinaryString(byte.toInt() and 0xFF).padStart(8, '0')
+        }
+    }
+
+    return if (payload.size > maxBytes) {
+        "$body\n... (${payload.size - maxBytes} more bytes)"
+    } else {
+        body
     }
 }
 
