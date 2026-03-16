@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.navigation.compose)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Coroutines for async VPN/capture work
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
