@@ -103,55 +103,75 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FirstRealApplicationTheme {
-                val navController = rememberNavController()
+                val settingsLoaded by settingsState.isLoaded
                 val packetLog by _packetLog
                 val isCapturing by _isCapturing
                 val filterText by _filterText
                 val saveMessage by _saveMessage
 
-                NavHost(navController = navController, startDestination = "home") {
-                    composable("home") {
-                        HomeScreen(
-                            packetLog = packetLog,
-                            isCapturing = isCapturing,
-                            filterText = filterText,
-                            onPlay = { requestVpnAndStart() },
-                            onStop = { stopCapture() },
-                            onFilterChanged = { _filterText.value = it },
-                            onSave = { saveCapture() },
-                            saveMessage = saveMessage,
-                            onDismissSaveMessage = { _saveMessage.value = null },
-                            onNew = { clearCapture() },
-                            onOpen = { openFile() },
-                            onNavigateToSettings = {
-                                navController.navigate("settings")
-                            },
-                            onPacketClick = { line ->
-                                val encoded = URLEncoder.encode(line, "UTF-8")
-                                navController.navigate("packetDetail/$encoded")
-                            }
-                        )
+                if (!settingsLoaded) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            CircularProgressIndicator()
+                            Text(
+                                text = "Lade Einstellungen...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.Gray
+                            )
+                        }
                     }
-                    composable("packetDetail/{packetLine}") { backStackEntry ->
-                        val encoded = backStackEntry.arguments?.getString("packetLine") ?: ""
-                        val line = URLDecoder.decode(encoded, "UTF-8")
-                        PacketDetailScreen(
-                            packetLine = line,
-                            onBack = { navController.popBackStack() }
-                        )
-                    }
-                    composable("settings") {
-                        SettingsScreen(
-                            onBack = { navController.popBackStack() },
-                            onNavigateToDetail = { detail: String ->
-                                navController.navigate("settings/$detail")
-                            },
-                            settingsState = settingsState
-                        )
-                    }
-                    composable("settings/{detail}") { backStackEntry ->
-                        val detail = backStackEntry.arguments?.getString("detail") ?: ""
-                        SettingsDetailScreen(detail = detail, onBack = { navController.popBackStack() })
+                } else {
+                    val navController = rememberNavController()
+                    NavHost(navController = navController, startDestination = "home") {
+                        composable("home") {
+                            HomeScreen(
+                                packetLog = packetLog,
+                                isCapturing = isCapturing,
+                                filterText = filterText,
+                                onPlay = { requestVpnAndStart() },
+                                onStop = { stopCapture() },
+                                onFilterChanged = { _filterText.value = it },
+                                onSave = { saveCapture() },
+                                saveMessage = saveMessage,
+                                onDismissSaveMessage = { _saveMessage.value = null },
+                                onNew = { clearCapture() },
+                                onOpen = { openFile() },
+                                onNavigateToSettings = {
+                                    navController.navigate("settings")
+                                },
+                                onPacketClick = { line ->
+                                    val encoded = URLEncoder.encode(line, "UTF-8")
+                                    navController.navigate("packetDetail/$encoded")
+                                }
+                            )
+                        }
+                        composable("packetDetail/{packetLine}") { backStackEntry ->
+                            val encoded = backStackEntry.arguments?.getString("packetLine") ?: ""
+                            val line = URLDecoder.decode(encoded, "UTF-8")
+                            PacketDetailScreen(
+                                packetLine = line,
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable("settings") {
+                            SettingsScreen(
+                                onBack = { navController.popBackStack() },
+                                onNavigateToDetail = { detail: String ->
+                                    navController.navigate("settings/$detail")
+                                },
+                                settingsState = settingsState
+                            )
+                        }
+                        composable("settings/{detail}") { backStackEntry ->
+                            val detail = backStackEntry.arguments?.getString("detail") ?: ""
+                            SettingsDetailScreen(detail = detail, onBack = { navController.popBackStack() })
+                        }
                     }
                 }
             }

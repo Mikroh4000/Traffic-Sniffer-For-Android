@@ -28,6 +28,7 @@ private val Context.dataStore by preferencesDataStore(
 class SettingsState(context: Context) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    val isLoaded = mutableStateOf(false)
 
     private object Defaults {
         const val CAPTURE_ON_START = false
@@ -303,6 +304,11 @@ class SettingsState(context: Context) {
             enableIpv6.value = prefs[Keys.ENABLE_IPV6] ?: Defaults.ENABLE_IPV6
             logLevel.value = prefs[Keys.LOG_LEVEL] ?: Defaults.LOG_LEVEL
             keepScreenOn.value = prefs[Keys.KEEP_SCREEN_ON] ?: Defaults.KEEP_SCREEN_ON
+
+            // Mark settings ready after first successful DataStore emission.
+            if (!isLoaded.value) {
+                isLoaded.value = true
+            }
         }
     }
 }
