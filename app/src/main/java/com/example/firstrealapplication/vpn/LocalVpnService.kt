@@ -25,8 +25,10 @@ class LocalVpnService : VpnService() {
         const val TAG = "LocalVpnService"
         const val ACTION_START = "com.example.firstrealapplication.vpn.START"
         const val ACTION_STOP = "com.example.firstrealapplication.vpn.STOP"
+        const val EXTRA_SNAP_LENGTH = "com.example.firstrealapplication.vpn.EXTRA_SNAP_LENGTH"
         const val NOTIFICATION_CHANNEL_ID = "vpn_channel"
         const val NOTIFICATION_ID = 1
+        const val DEFAULT_SNAP_LENGTH = 65535
 
         var instance: LocalVpnService? = null
             private set
@@ -39,6 +41,7 @@ class LocalVpnService : VpnService() {
     private var tunReader: TunReader? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pcapWriter: PcapWriter? = null
+    private var currentSnapLength = DEFAULT_SNAP_LENGTH
 
     override fun onCreate() {
         super.onCreate()
@@ -53,6 +56,10 @@ class LocalVpnService : VpnService() {
                 START_NOT_STICKY
             }
             else -> {
+                currentSnapLength = intent
+                    ?.getIntExtra(EXTRA_SNAP_LENGTH, DEFAULT_SNAP_LENGTH)
+                    ?.coerceIn(64, DEFAULT_SNAP_LENGTH)
+                    ?: DEFAULT_SNAP_LENGTH
                 startVpn()
                 START_STICKY
             }
@@ -85,7 +92,7 @@ class LocalVpnService : VpnService() {
                 val outputStream = FileOutputStream(pfd.fileDescriptor)
 
                 // Initialize pcap writer (writes to app-internal storage)
-                pcapWriter = PcapWriter(filesDir).also { it.open() }
+                pcapWriter = PcapWriter(filesDir, currentSnapLength).also { it.open() }
 
                 // Initialize the TUN reader that processes packets
                 tunReader = TunReader(
@@ -113,8 +120,10 @@ class LocalVpnService : VpnService() {
         // Parse the raw IP packet
         val parsed = PacketParser.parse(rawPacket) ?: return
 
-        // Write to pcap file
-        pcapWriter?.writePacket(rawPacket)
+        // Snap length affects stored bytes in pcap, not parser input.
+        val capturedLength = minOf(rawPacket.size, currentSnapLength)
+        val packetForPcap = if (capturedLength == rawPacket.size) rawPacket else rawPacket.copyOf(capturedLength)
+        pcapWriter?.writePacket(packetForPcap, rawPacket.size)
 
         // Build a summary string and deliver to UI
         val summary = PacketParser.summarize(parsed)

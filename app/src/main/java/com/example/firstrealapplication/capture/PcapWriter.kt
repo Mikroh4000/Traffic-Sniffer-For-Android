@@ -15,14 +15,16 @@ import java.util.Locale
  * Uses the standard pcap file format (magic, global header, per-packet headers).
  * Files are stored in the app's internal storage directory.
  */
-class PcapWriter(private val outputDir: File) {
+class PcapWriter(
+    private val outputDir: File,
+    private val snapLen: Int = 65535
+) {
 
     companion object {
         private const val TAG = "PcapWriter"
         private const val PCAP_MAGIC = 0xA1B2C3D4.toInt()
         private const val PCAP_VERSION_MAJOR: Short = 2
         private const val PCAP_VERSION_MINOR: Short = 4
-        private const val PCAP_SNAPLEN = 65535
         private const val PCAP_LINKTYPE_RAW = 101 // Raw IP (no link-layer header)
     }
 
@@ -50,7 +52,7 @@ class PcapWriter(private val outputDir: File) {
     /**
      * Writes a raw IP packet with a pcap record header.
      */
-    fun writePacket(rawPacket: ByteArray) {
+    fun writePacket(rawPacket: ByteArray, originalLength: Int = rawPacket.size) {
         val stream = outputStream ?: return
         try {
             val timeMillis = System.currentTimeMillis()
@@ -62,7 +64,7 @@ class PcapWriter(private val outputDir: File) {
                 putInt(tsSec)
                 putInt(tsUsec)
                 putInt(rawPacket.size)   // captured length
-                putInt(rawPacket.size)   // original length
+                putInt(originalLength)   // original length on wire
             }
 
             synchronized(this) {
@@ -101,7 +103,7 @@ class PcapWriter(private val outputDir: File) {
             putShort(PCAP_VERSION_MINOR)
             putInt(0)                  // thiszone
             putInt(0)                  // sigfigs
-            putInt(PCAP_SNAPLEN)       // snaplen
+            putInt(snapLen.coerceIn(64, 65535)) // snaplen
             putInt(PCAP_LINKTYPE_RAW)  // network (Raw IP)
         }
         outputStream?.write(header.array())

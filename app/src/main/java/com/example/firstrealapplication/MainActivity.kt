@@ -240,6 +240,7 @@ class MainActivity : ComponentActivity() {
 
         val serviceIntent = Intent(this, LocalVpnService::class.java).apply {
             action = LocalVpnService.ACTION_START
+            putExtra(LocalVpnService.EXTRA_SNAP_LENGTH, settingsState.snapLength.value)
         }
         startService(serviceIntent)
     }
