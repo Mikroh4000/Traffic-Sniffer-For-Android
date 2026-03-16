@@ -88,17 +88,6 @@ fun SettingsScreen(
                 )
             }
             item {
-                SettingsToggle(
-                    title = "Promiscuous mode",
-                    subtitle = "Capture all packets, not just those addressed to this device",
-                    checked = s.promiscuousMode.value,
-                    onCheckedChange = {
-                        s.promiscuousMode.value = it
-                        s.saveBoolean("promiscuous_mode", it)
-                    }
-                )
-            }
-            item {
                 SettingsNumberField(
                     title = "Auto-stop after (MB)",
                     subtitle = "Stop capture after this size (0 = unlimited)",

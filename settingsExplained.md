@@ -32,10 +32,6 @@ Some settings are fully wired into runtime behavior, while many are currently UI
  Intended: maximum number of bytes captured per packet.
  Current state: persisted only. Capture/pcap writing still uses full packet bytes.
 
-### Promiscuous mode (`promiscuous_mode`, default: `false`)
- Intended: capture traffic beyond device-targeted flows.
- Current state: persisted only. `VpnService` setup does not change based on this flag.
-
 ### Auto-stop after MB (`auto_stop_mb`, default: `0`)
  Intended: stop capture when written data reaches a threshold.
  `0` means unlimited.

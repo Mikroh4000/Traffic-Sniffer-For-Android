@@ -34,7 +34,6 @@ class SettingsState(context: Context) {
         const val CAPTURE_ON_START = false
         const val MAX_PACKET_LOG_LINES = 500
         const val SNAP_LENGTH = 65535
-        const val PROMISCUOUS_MODE = false
         const val AUTO_STOP_AFTER_MB = 0
         const val AUTO_STOP_AFTER_MINUTES = 0
 
@@ -82,7 +81,6 @@ class SettingsState(context: Context) {
         val CAPTURE_ON_START = booleanPreferencesKey("capture_on_start")
         val MAX_LOG_LINES = intPreferencesKey("max_log_lines")
         val SNAP_LENGTH = intPreferencesKey("snap_length")
-        val PROMISCUOUS_MODE = booleanPreferencesKey("promiscuous_mode")
         val AUTO_STOP_MB = intPreferencesKey("auto_stop_mb")
         val AUTO_STOP_MINUTES = intPreferencesKey("auto_stop_minutes")
 
@@ -130,7 +128,6 @@ class SettingsState(context: Context) {
     val captureOnStart = mutableStateOf(Defaults.CAPTURE_ON_START)
     val maxPacketLogLines = mutableStateOf(Defaults.MAX_PACKET_LOG_LINES)
     val snapLength = mutableStateOf(Defaults.SNAP_LENGTH)
-    val promiscuousMode = mutableStateOf(Defaults.PROMISCUOUS_MODE)
     val autoStopAfterMb = mutableStateOf(Defaults.AUTO_STOP_AFTER_MB) // 0 = unlimited
     val autoStopAfterMinutes = mutableStateOf(Defaults.AUTO_STOP_AFTER_MINUTES)
 
@@ -220,7 +217,6 @@ class SettingsState(context: Context) {
         captureOnStart.value = Defaults.CAPTURE_ON_START
         maxPacketLogLines.value = Defaults.MAX_PACKET_LOG_LINES
         snapLength.value = Defaults.SNAP_LENGTH
-        promiscuousMode.value = Defaults.PROMISCUOUS_MODE
         autoStopAfterMb.value = Defaults.AUTO_STOP_AFTER_MB
         autoStopAfterMinutes.value = Defaults.AUTO_STOP_AFTER_MINUTES
         captureTcp.value = Defaults.CAPTURE_TCP
@@ -262,7 +258,6 @@ class SettingsState(context: Context) {
             captureOnStart.value = prefs[Keys.CAPTURE_ON_START] ?: Defaults.CAPTURE_ON_START
             maxPacketLogLines.value = prefs[Keys.MAX_LOG_LINES] ?: Defaults.MAX_PACKET_LOG_LINES
             snapLength.value = prefs[Keys.SNAP_LENGTH] ?: Defaults.SNAP_LENGTH
-            promiscuousMode.value = prefs[Keys.PROMISCUOUS_MODE] ?: Defaults.PROMISCUOUS_MODE
             autoStopAfterMb.value = prefs[Keys.AUTO_STOP_MB] ?: Defaults.AUTO_STOP_AFTER_MB
             autoStopAfterMinutes.value = prefs[Keys.AUTO_STOP_MINUTES] ?: Defaults.AUTO_STOP_AFTER_MINUTES
 
